@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int          @id @default(autoincrement())
+  name       String
+  image      String?
+  email      String       @unique
+  phone      BigInt
+  password   String?
+  role       Role         @default(STAFF)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  OrderBatch OrderBatch[]
+  Shop       Shop[]
+  Transport  Transport[]
+  Order      Order[]
+}
+
+model Shop {
+  id            Int      @id @default(autoincrement())
+  name          String
+  image         String?
+  email         String
+  phone         Int
+  contactPerson String
+  contactPhone  Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdById   Int
+  orders        Order[]
+}
+
+model Transport {
+  id          Int      @id @default(autoincrement())
+  image       String?
+  name        String
+  phone       Int
+  email       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdById Int
+  orders      Order[]
+}
+
+model Order {
+  id             Int         @id @default(autoincrement())
+  shop           Shop        @relation(fields: [shopId], references: [id])
+  shopId         Int
+  boxes          Int
+  billno         Int
+  note           String
+  transport      Transport   @relation(fields: [transportId], references: [id])
+  transportId    Int
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  createdBy      User        @relation(fields: [createdById], references: [id])
+  createdById    Int
+  deliveryStatus Status      @default(PROCESSING)
+  payment        Payment     @default(PENDING)
+  OrderBatch     OrderBatch? @relation(fields: [orderBatchId], references: [id])
+  orderBatchId   Int?
+}
+
+model OrderBatch {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  orders      Order[]
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdById Int
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum Status {
+  PROCESSING
+  DELIVERED
+}
+
+enum Payment {
+  PENDING
+  COMPLETED
+}

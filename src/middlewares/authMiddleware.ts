@@ -39,3 +39,7 @@ export const authMiddleware = asyncHandler(
     }
   }
 );
+
+export const isAdmin = asyncHandler(async(req:Request, res:Response, next:NextFunction)=>{
+  
+})

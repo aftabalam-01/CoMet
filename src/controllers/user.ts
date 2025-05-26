@@ -4,6 +4,8 @@ import { Request, Response } from "express";
 import { hashedPassword, comparePassword } from "../utils/hashPassword";
 import { generateToken } from "../utils/jwtToken";
 import { generateRefreshToken } from "../utils/refreshToken";
+import jwt from "jsonwebtoken";
+import { JWT_SECRET } from "../config/config";
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
   const { name, phone, image, role, email, password } = req.body;
@@ -16,14 +18,14 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
   if (findUser) {
     res.status(409).json("User Already Exists");
   } else {
-    const hash = await hashedPassword(password);
+    const hashPassword = await hashedPassword(password);
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
         image,
         phone,
-        password: hash,
+        password: hashPassword,
         role,
       },
     });
@@ -41,7 +43,8 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (!user || !user.password) {
-    throw new Error("Invalid Email or Password");
+    res.status(403);
+    throw new Error("Email or Password Missing");
   }
 
   const isMatch = await comparePassword(password, user.password);
@@ -60,7 +63,7 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 72 * 60 * 60 * 1000, // 3 days
+    maxAge: 72 * 60 * 60 * 1000,
   });
 
   const { password: _, ...safeUser } = updatedUser;
@@ -68,6 +71,86 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json({
     message: "Login successful",
     user: safeUser,
-    
   });
+});
+
+export const handleRefreshToken = asyncHandler(
+  async (req: Request, res: Response) => {
+    const cookie = req.cookies;
+
+    if (!cookie?.refreshToken) {
+      res.status(401);
+      throw new Error("No Refresh Token in the Cookie ");
+    }
+    const refreshToken = cookie.refreshToken;
+    const user = await prisma.user.findFirst({
+      where: {
+        refreshToken,
+      },
+    });
+    if (!user) {
+      res.status(404);
+      throw new Error("No User Found in System");
+    }
+    try {
+      const decoded = jwt.verify(refreshToken, JWT_SECRET) as jwt.JwtPayload;
+
+      if (typeof decoded !== "object" || !("id" in decoded)) {
+        res.status(403);
+        throw new Error("Invalid Token Payload");
+      }
+
+      if (user.id !== decoded.id) {
+        res.status(403);
+        throw new Error("Refresh Token does not match User");
+      }
+
+      const accessToken = generateToken(user.id);
+      res.json({ accessToken });
+    } catch (error: any) {
+      res.status(403);
+      throw new Error(error);
+    }
+  }
+);
+
+export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  try {
+    const isAdmin = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+    if (isAdmin?.role !== "ADMIN") {
+      res.status(403);
+      throw new Error("Not Authorrised");
+    }
+
+    if (!isAdmin || !isAdmin.password) {
+      res.status(403);
+      throw new Error("Email or Password Missing");
+    }
+    const isMatch = await comparePassword(password, isAdmin.password);
+    if (!isMatch) {
+      res.status(403);
+      throw new Error("Invalid Email or Password");
+    }
+    const refreshToken = generateRefreshToken({ id: isAdmin.id });
+    const updatedUser = await prisma.user.update({
+      where: { id: isAdmin.id },
+      data: {
+        refreshToken,
+      },
+    });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 72 * 60 * 60 * 1000,
+    });
+    const { password: _, ...safeUser } = updatedUser;
+  } catch (error: any) {
+    throw new Error(error);
+  }
 });

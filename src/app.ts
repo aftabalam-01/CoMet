@@ -1,6 +1,7 @@
-import morgan from "morgan";
 import express from "express";
 import dotenv from "dotenv";
+import morgan from "morgan";
+import cookieParser from "cookie-parser";
 import { notFound, errorHandler } from "./middlewares/errorHandlers";
 import userRouter from "./routes/user";
 
@@ -9,6 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 //Middlewares
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan("dev"));

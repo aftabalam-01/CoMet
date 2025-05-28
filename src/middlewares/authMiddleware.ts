@@ -40,6 +40,18 @@ export const authMiddleware = asyncHandler(
   }
 );
 
-export const isAdmin = asyncHandler(async(req:Request, res:Response, next:NextFunction)=>{
-  
-})
+export const isAdmin = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { email } = req.body;
+    const findUser = await prisma.user.findFirst({
+      where: {
+        email,
+      },
+    });
+    if (findUser?.role !== "ADMIN") {
+      throw new Error("Not Authorised");
+    } else {
+      next();
+    }
+  }
+);

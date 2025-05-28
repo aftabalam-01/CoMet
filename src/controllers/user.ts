@@ -154,3 +154,18 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     throw new Error(error);
   }
 });
+
+export const getUser = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = parseInt(id, 10);
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+      },
+    });
+    res.status(200).json({ user });
+  } catch (error: any) {
+    throw new Error(error);
+  }
+});

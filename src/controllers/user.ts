@@ -43,8 +43,8 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (!user || !user.password) {
-    res.status(403);
-    throw new Error("Email or Password Missing");
+    res.status(404);
+    throw new Error("User not Found");
   }
 
   const isMatch = await comparePassword(password, user.password);

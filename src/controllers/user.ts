@@ -116,55 +116,94 @@ export const handleRefreshToken = asyncHandler(
 
 export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  try {
-    const isAdmin = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
-    if (isAdmin?.role !== "ADMIN") {
-      res.status(403);
-      throw new Error("Not Authorrised");
-    }
-
-    if (!isAdmin || !isAdmin.password) {
-      res.status(403);
-      throw new Error("Email or Password Missing");
-    }
-    const isMatch = await comparePassword(password, isAdmin.password);
-    if (!isMatch) {
-      res.status(403);
-      throw new Error("Invalid Email or Password");
-    }
-    const refreshToken = generateRefreshToken({ id: isAdmin.id });
-    const updatedUser = await prisma.user.update({
-      where: { id: isAdmin.id },
-      data: {
-        refreshToken,
-      },
-    });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 72 * 60 * 60 * 1000,
-    });
-    const { password: _, ...safeUser } = updatedUser;
-  } catch (error: any) {
-    throw new Error(error);
+  const isAdmin = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+  if (isAdmin?.role !== "ADMIN") {
+    res.status(403);
+    throw new Error("Not Authorrised");
   }
+
+  if (!isAdmin || !isAdmin.password) {
+    res.status(403);
+    throw new Error("Email or Password Missing");
+  }
+  const isMatch = await comparePassword(password, isAdmin.password);
+  if (!isMatch) {
+    res.status(403);
+    throw new Error("Invalid Email or Password");
+  }
+  const refreshToken = generateRefreshToken({ id: isAdmin.id });
+  const updatedUser = await prisma.user.update({
+    where: { id: isAdmin.id },
+    data: {
+      refreshToken,
+    },
+  });
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 72 * 60 * 60 * 1000,
+  });
+  const { password: _, ...safeUser } = updatedUser;
+  res.status(200).json({
+    message: "Login successful",
+    admin: safeUser,
+  });
 });
 
 export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = parseInt(id, 10);
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+  });
+  if (!user) {
+    res.status(404).json({ message: "User Not Found" });
+    return;
+  }
+  const { password, ...safeUser } = user;
+  res.status(200).json({ safeUser });
+});
+
+export const allUsers = asyncHandler(async (req: Request, res: Response) => {
+  const users = await prisma.user.findMany();
+
+  if (!users || users.length === 0) {
+    res.status(404).json({ message: "No Users Found" });
+    return;
+  }
+  const safeUsers = users.map(
+    ({ password, ...userWithoutPassword }) => userWithoutPassword
+  );
+  res.status(200).json({ safeUsers });
+});
+
+export const updateUser = asyncHandler(async (req: Request, res: Response) => {
+  const { name, image, email, phone } = req.body;
+  const { id } = req.params;
+  const userId = parseInt(id, 10);
   try {
-    const user = await prisma.user.findFirst({
+    const updatedUser = await prisma.user.update({
       where: {
         id: userId,
       },
+      data: {
+        name,
+        image,
+        email,
+        phone,
+      },
     });
-    res.status(200).json({ user });
+    if (!updateUser) {
+      res.status(404).json("User Not Found");
+    }
+    res.status(200).json({ updatedUser });
   } catch (error: any) {
     throw new Error(error);
   }

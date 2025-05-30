@@ -49,7 +49,7 @@ export const isAdmin = asyncHandler(
       },
     });
     if (findUser?.role !== "ADMIN") {
-      throw new Error("Not Authorised");
+      throw new Error("Access denied: Admins only");
     } else {
       next();
     }

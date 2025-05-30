@@ -3,13 +3,19 @@ import {
   createUser,
   getUser,
   handleRefreshToken,
+  adminLogin,
   loginUser,
+  allUsers,
+  updateUser,
 } from "../controllers/user";
 import { authMiddleware, isAdmin } from "../middlewares/authMiddleware";
 const router = Router();
 
 router.post("/create", createUser);
 router.post("/login", loginUser);
+router.post("/login/admin", adminLogin);
 router.get("/refresh", authMiddleware, handleRefreshToken);
-router.get("/profile", getUser);
+router.get("/profile/:id", getUser);
+router.get("/all-users", allUsers);
+router.put("/update/:id", authMiddleware, updateUser)
 export default router;

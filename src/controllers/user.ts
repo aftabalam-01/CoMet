@@ -175,7 +175,7 @@ export const allUsers = asyncHandler(async (req: Request, res: Response) => {
   const users = await prisma.user.findMany();
 
   if (!users || users.length === 0) {
-    res.status(404).json({ message: "No Users Found" });
+    res.status(404).json({ message: "No User" });
     return;
   }
   const safeUsers = users.map(
@@ -189,6 +189,12 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = parseInt(id, 10);
   try {
+const findUser = await prisma.user.findUnique({
+  where:{
+    email
+  }
+})
+
     const updatedUser = await prisma.user.update({
       where: {
         id: userId,
@@ -200,11 +206,27 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
         phone,
       },
     });
-    if (!updateUser) {
-      res.status(404).json("User Not Found");
+    if (!findUser) {
+      res.status(404).json("User not Found");
     }
     res.status(200).json({ updatedUser });
   } catch (error: any) {
     throw new Error(error);
   }
+});
+
+export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = parseInt(id);
+
+  const deletedUser = await prisma.user.delete({
+    where: {
+      id: userId,
+    },
+  });
+  if (!deletedUser) {
+    res.status(404).json({message:"User not Found"});
+    return;
+  }
+  res.status(200).json({ deletedUser });
 });

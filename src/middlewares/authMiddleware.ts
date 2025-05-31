@@ -41,14 +41,9 @@ export const authMiddleware = asyncHandler(
 );
 
 export const isAdmin = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const { email } = req.body;
-    const findUser = await prisma.user.findFirst({
-      where: {
-        email,
-      },
-    });
-    if (findUser?.role !== "ADMIN") {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    
+    if (req?.user?.role !== "ADMIN") {
       throw new Error("Access denied: Admins only");
     } else {
       next();

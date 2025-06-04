@@ -8,20 +8,22 @@ datasource db {
 }
 
 model User {
-  id           Int          @id @default(autoincrement())
-  name         String
-  image        String?
-  email        String       @unique
-  phone        String
-  password     String?
-  refreshToken String?
-  role         Role         @default(STAFF)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  OrderBatch   OrderBatch[]
-  Shop         Shop[]
-  Transport    Transport[]
-  Order        Order[]
+  id                   Int          @id @default(autoincrement())
+  name                 String
+  image                String?
+  email                String       @unique
+  phone                String
+  password             String?
+  refreshToken         String?
+  passwordResetToken   String?      @db.VarChar(255)
+  passwordResetExpires DateTime?
+  role                 Role         @default(STAFF)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  OrderBatch           OrderBatch[]
+  Shop                 Shop[]
+  Transport            Transport[]
+  Order                Order[]
 }
 
 model Shop {

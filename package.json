@@ -5,22 +5,24 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "server": "nodemon src/app.ts",
-    "studio":"npx prisma studio"
+    "studio": "npx prisma studio"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^6.8.2",
+    "@prisma/client": "^6.9.0",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
+    "crypto": "^1.0.1",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "multer": "^2.0.0"
+    "multer": "^2.0.0",
+    "nodemailer": "^7.0.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -29,7 +31,8 @@
     "@types/jsonwebtoken": "^9.0.9",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.15.21",
-    "prisma": "^6.8.2",
+    "@types/nodemailer": "^6.4.17",
+    "prisma": "^6.9.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.3"
   }

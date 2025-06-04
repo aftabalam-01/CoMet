@@ -6,6 +6,7 @@ import { generateToken } from "../utils/jwtToken";
 import { generateRefreshToken } from "../utils/refreshToken";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config/config";
+import { sentResetEmail } from "./mail";
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
   const { name, phone, image, role, email, password } = req.body;
@@ -155,6 +156,69 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+export const logout = asyncHandler(async (req: Request, res: Response) => {
+  const cookie = req.cookies;
+  if (!cookie.refreshToken) {
+    res.status(404).json({ message: "No Refresh Token in cookies" });
+    return;
+  }
+  const refreshToken = cookie.refreshToken;
+  const user = await prisma.user.findFirst({
+    where: {
+      refreshToken,
+    },
+  });
+
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+  });
+  if (!user) {
+    res.sendStatus(204);
+    return;
+  }
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      refreshToken: " ",
+    },
+  });
+  res.status(200).json({ message: "Logged Out Successfully" });
+});
+
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+    if (!user) {
+      res.status(404).json({ message: "User Not Found" });
+    }
+
+    try {
+      const token = await user?.passwordResetToken;
+      prisma.user.upsert;
+      const resetURL = `Hi, Please follow this link to reset your password. This link will be only valid for 10 Minutes from now <a href='http://localhost:4000/api/user/reset-password/${token}'>Click Here</a>`;
+      const data = {
+        to: email,
+        text: "Hello from CoMet",
+        subject: "Password Reset Link",
+        html: resetURL,
+      };
+      sentResetEmail;
+      res.status(200).json({ Token: token });
+    } catch (error: any) {
+      throw new Error(error);
+    }
+  }
+);
+
 export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = parseInt(id, 10);
@@ -189,11 +253,11 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = parseInt(id, 10);
   try {
-const findUser = await prisma.user.findUnique({
-  where:{
-    email
-  }
-})
+    const findUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
 
     const updatedUser = await prisma.user.update({
       where: {
@@ -225,7 +289,7 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
     },
   });
   if (!deletedUser) {
-    res.status(404).json({message:"User not Found"});
+    res.status(404).json({ message: "User not Found" });
     return;
   }
   res.status(200).json({ deletedUser });

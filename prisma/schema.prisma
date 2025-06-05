@@ -13,7 +13,7 @@ model User {
   image                String?
   email                String       @unique
   phone                String
-  password             String?
+  password             String
   refreshToken         String?
   passwordResetToken   String?      @db.VarChar(255)
   passwordResetExpires DateTime?
@@ -30,10 +30,12 @@ model Shop {
   id            Int      @id @default(autoincrement())
   name          String
   image         String?
-  email         String
-  phone         Int
-  contactPerson String
-  contactPhone  Int
+  email         String   @unique
+  phone         String   @unique
+  contactPerson String?
+  totalBoxes    String?
+  billAmount    String?
+  contactPhone  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   createdBy     User     @relation(fields: [createdById], references: [id])
@@ -45,8 +47,8 @@ model Transport {
   id          Int      @id @default(autoincrement())
   image       String?
   name        String
-  phone       Int
-  email       String
+  phone       String   @unique
+  email       String   @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdBy   User     @relation(fields: [createdById], references: [id])

@@ -5,6 +5,7 @@ import { hashedPassword, comparePassword } from "../utils/hashPassword";
 import { generateToken } from "../utils/jwtToken";
 import { generateRefreshToken } from "../utils/refreshToken";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { JWT_SECRET } from "../config/config";
 import { sentResetEmail } from "./mail";
 
@@ -199,23 +200,96 @@ export const forgotPassword = asyncHandler(
     });
     if (!user) {
       res.status(404).json({ message: "User Not Found" });
+      return;
     }
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
+    await prisma.user.update({
+      where: {
+        email,
+      },
+      data: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
     try {
-      const token = await user?.passwordResetToken;
-      prisma.user.upsert;
-      const resetURL = `Hi, Please follow this link to reset your password. This link will be only valid for 10 Minutes from now <a href='http://localhost:4000/api/user/reset-password/${token}'>Click Here</a>`;
+      const resetURL = `Please follow this link to reset your password. This link will be only valid for 10 Minutes from now <a href='http://localhost:4000/api/user/reset-password/${resetToken}'>Click Here</a>`;
       const data = {
         to: email,
-        text: "Hello from CoMet",
+        text: `Hi ${user?.name || "User"}`,
         subject: "Password Reset Link",
         html: resetURL,
       };
-      sentResetEmail;
-      res.status(200).json({ Token: token });
+      await sentResetEmail(data);
+      res.status(200).json({ Token: resetToken });
     } catch (error: any) {
       throw new Error(error);
     }
+  }
+);
+
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { gt: new Date() },
+      },
+    });
+    if (!user) {
+      console.warn("!! Password reset attempt with invalid/expired token.");
+      res
+        .status(400)
+        .json({ message: "Reset link is invalid or has expired." });
+      return;
+    }
+    const hashPassword = await hashedPassword(password);
+    await prisma.user.update({
+      where: {
+        id: user?.id,
+      },
+      data: {
+        password: hashPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    res.status(200).json({ message: "Password Changed Successfully " });
+  }
+);
+
+export const getCurrentUser = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = (req as any).user?.id;
+    const currentUser = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        image: true,
+      },
+    });
+    if (!currentUser) {
+      res.status(404).json("User Not Found");
+      return;
+    }
+
+    res.status(200).json(currentUser);
   }
 );
 
@@ -255,10 +329,13 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   try {
     const findUser = await prisma.user.findUnique({
       where: {
-        email,
+        id: userId,
       },
     });
-
+    if (!findUser) {
+      res.status(404).json("User not Found");
+      return;
+    }
     const updatedUser = await prisma.user.update({
       where: {
         id: userId,
@@ -270,9 +347,7 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
         phone,
       },
     });
-    if (!findUser) {
-      res.status(404).json("User not Found");
-    }
+
     res.status(200).json({ updatedUser });
   } catch (error: any) {
     throw new Error(error);
@@ -283,14 +358,20 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = parseInt(id);
 
+  const findUser = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+  });
+  if (!findUser) {
+    res.status(404).json({ message: "User not Found" });
+    return;
+  }
   const deletedUser = await prisma.user.delete({
     where: {
       id: userId,
     },
   });
-  if (!deletedUser) {
-    res.status(404).json({ message: "User not Found" });
-    return;
-  }
+
   res.status(200).json({ deletedUser });
 });

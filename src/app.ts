@@ -5,6 +5,8 @@ import cookieParser from "cookie-parser";
 import { notFound, errorHandler } from "./middlewares/errorHandlers";
 import userRouter from "./routes/user";
 import shopRouter from "./routes/shop";
+import transportRouter from "./routes/transport";
+import orderRouter from "./routes/order";
 
 dotenv.config();
 const app = express();
@@ -19,6 +21,8 @@ app.use(morgan("dev"));
 //Routes
 app.use("/api/user", userRouter);
 app.use("/api/shop", shopRouter);
+app.use("/api/transport", transportRouter);
+app.use("/api/order", orderRouter);
 
 // Error handler
 app.use(notFound);

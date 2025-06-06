@@ -33,8 +33,8 @@ model Shop {
   email         String   @unique
   phone         String   @unique
   contactPerson String?
-  totalBoxes    String?
-  billAmount    String?
+  totalBoxes    Int?
+  billAmount    Int?
   contactPhone  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -44,16 +44,19 @@ model Shop {
 }
 
 model Transport {
-  id          Int      @id @default(autoincrement())
-  image       String?
-  name        String
-  phone       String   @unique
-  email       String   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  createdById Int
-  orders      Order[]
+  id            Int      @id @default(autoincrement())
+  image         String?
+  name          String
+  phone         String   @unique
+  email         String   @unique
+  contactPerson String?
+  contactPhone  String?
+  totalBoxes    Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdById   Int
+  orders        Order[]
 }
 
 model Order {
@@ -69,7 +72,7 @@ model Order {
   updatedAt      DateTime    @updatedAt
   createdBy      User        @relation(fields: [createdById], references: [id])
   createdById    Int
-  deliveryStatus Status      @default(PROCESSING)
+  deliveryStatus Status      @default(PENDING)
   payment        Payment     @default(PENDING)
   OrderBatch     OrderBatch? @relation(fields: [orderBatchId], references: [id])
   orderBatchId   Int?
@@ -89,11 +92,17 @@ enum Role {
 }
 
 enum Status {
+  PENDING
   PROCESSING
   DELIVERED
+  CANCELLED
+  RETURNED
 }
 
 enum Payment {
+  UNPAID
   PENDING
-  COMPLETED
+  PAID
+  FAILED
+  REFUNDED
 }

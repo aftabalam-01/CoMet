@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { authMiddleware, isAdmin } from "../middlewares/authMiddleware";
-import { createOrder } from "../controllers/order";
+import { createOrder, viewOrder } from "../controllers/order";
 
-const router = Router()
+const router = Router();
 
-router.post("/create", createOrder)
+router.post("/create", createOrder);
+router.get("/order-detail/:id", viewOrder);
 
-export default router
+export default router;

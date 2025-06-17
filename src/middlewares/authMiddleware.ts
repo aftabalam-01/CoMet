@@ -4,7 +4,7 @@ import asyncHandler from "express-async-handler";
 import { Request, Response, NextFunction } from "express";
 import { JWT_SECRET } from "../config/config";
 
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
   user?: any;
 }
 export const authMiddleware = asyncHandler(

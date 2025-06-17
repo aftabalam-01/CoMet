@@ -15,15 +15,16 @@ model User {
   phone                String
   password             String
   refreshToken         String?
-  passwordResetToken   String?      @db.VarChar(255)
+  passwordResetToken   String?
   passwordResetExpires DateTime?
   role                 Role         @default(STAFF)
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
-  OrderBatch           OrderBatch[]
-  Shop                 Shop[]
-  Transport            Transport[]
-  Order                Order[]
+  isDeleted            Boolean      @default(false)
+  orderBatches         OrderBatch[]
+  shops                Shop[]
+  transports           Transport[]
+  orders               Order[]
 }
 
 model Shop {
@@ -33,14 +34,15 @@ model Shop {
   email         String   @unique
   phone         String   @unique
   contactPerson String?
-  totalBoxes    Int?
-  billAmount    Int?
+  totalBoxes    Int?     @default(0)
+  billAmount    Int?     @default(0)
   contactPhone  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   createdBy     User     @relation(fields: [createdById], references: [id])
   createdById   Int
   orders        Order[]
+  isDeleted     Boolean  @default(false)
 }
 
 model Transport {
@@ -51,22 +53,23 @@ model Transport {
   email         String   @unique
   contactPerson String?
   contactPhone  String?
-  totalBoxes    Int?
+  totalBoxes    Int?     @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   createdBy     User     @relation(fields: [createdById], references: [id])
   createdById   Int
   orders        Order[]
+  isDeleted     Boolean  @default(false)
 }
 
 model Order {
   id             Int         @id @default(autoincrement())
-  shop           Shop        @relation(fields: [shopId], references: [id])
+  shops          Shop        @relation(fields: [shopId], references: [id])
   shopId         Int
   boxes          Int
   billno         Int
-  note           String
-  transport      Transport   @relation(fields: [transportId], references: [id])
+  note           String?
+  transports     Transport   @relation(fields: [transportId], references: [id])
   transportId    Int
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -74,8 +77,13 @@ model Order {
   createdById    Int
   deliveryStatus Status      @default(PENDING)
   payment        Payment     @default(PENDING)
-  OrderBatch     OrderBatch? @relation(fields: [orderBatchId], references: [id])
+  OrderBatches   OrderBatch? @relation(fields: [orderBatchId], references: [id])
   orderBatchId   Int?
+  isDeleted      Boolean     @default(false)
+
+  @@index([createdAt])
+  @@index([shopId])
+  @@index([transportId])
 }
 
 model OrderBatch {
@@ -94,6 +102,7 @@ enum Role {
 enum Status {
   PENDING
   PROCESSING
+  SHIPPED
   DELIVERED
   CANCELLED
   RETURNED

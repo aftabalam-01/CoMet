@@ -72,10 +72,12 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 
   const { password: _, ...safeUser } = updatedUser;
+  const accessToken = generateToken(user.id)
 
   res.status(200).json({
     message: "Login successful",
     user: safeUser,
+    accessToken
   });
 });
 

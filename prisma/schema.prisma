@@ -69,6 +69,7 @@ model Order {
   boxes          Int
   billno         Int
   note           String?
+  lr             String?
   transports     Transport   @relation(fields: [transportId], references: [id])
   transportId    Int
   createdAt      DateTime    @default(now())

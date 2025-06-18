@@ -17,7 +17,7 @@ router.post("/create-bulk", authMiddleware, createBulkTransport);
 router.get("/transport-detail/:id", getTransport);
 router.get("/transports", getTransports);
 router.put("/update/:id", authMiddleware, isAdmin, updateTransport);
-router.delete("/delete/:id", authMiddleware, isAdmin, deleteTransport);
-router.delete("/delete-bulk", authMiddleware, isAdmin, deleteBulkTransport);
+router.put("/delete/:id", authMiddleware, isAdmin, deleteTransport);
+router.put("/delete-bulk", authMiddleware, isAdmin, deleteBulkTransport);
 
 export default router;

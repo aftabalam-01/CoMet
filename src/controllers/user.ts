@@ -9,7 +9,6 @@ import crypto from "crypto";
 import { JWT_SECRET } from "../config/config";
 import { sentResetEmail } from "./mail";
 
-
 // <-----------------------------------------------------------------------------Auth---------------------------------------------------------------------------->
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
@@ -72,12 +71,12 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 
   const { password: _, ...safeUser } = updatedUser;
-  const accessToken = generateToken(user.id)
+  const accessToken = generateToken(user.id);
 
   res.status(200).json({
     message: "Login successful",
     user: safeUser,
-    accessToken
+    accessToken,
   });
 });
 
@@ -183,20 +182,20 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
       refreshToken,
     },
   });
-  
+
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: 72 * 60 * 60 * 1000,
   });
-  const accessToken = generateToken(isAdmin.id)
+  const accessToken = generateToken(isAdmin.id);
 
   const { password: _, ...safeUser } = updatedUser;
   res.status(200).json({
     message: "Login successful",
     admin: safeUser,
-    accessToken
+    accessToken,
   });
 });
 
@@ -233,6 +232,7 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: {
       id: userId,
+      isDeleted: false,
     },
   });
   if (!user) {
@@ -244,7 +244,9 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const allUsers = asyncHandler(async (req: Request, res: Response) => {
-  const users = await prisma.user.findMany();
+  const users = await prisma.user.findMany({
+    where: { isDeleted: false },
+  });
 
   if (!users || users.length === 0) {
     res.status(404).json({ message: "No User" });
@@ -327,7 +329,7 @@ export const forgotPassword = asyncHandler(
         html: resetURL,
       };
       await sentResetEmail(data);
-      res.status(200).json({ message:"Reset link sent to your Email" });
+      res.status(200).json({ message: "Reset link sent to your Email" });
     } catch (error: any) {
       throw new Error(error);
     }
@@ -387,9 +389,10 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   const deletedUser = await prisma.user.update({
     where: {
       id: userId,
-    },data:{
-      isDeleted:true
-    }
+    },
+    data: {
+      isDeleted: true,
+    },
   });
 
   res.status(200).json({ deletedUser });

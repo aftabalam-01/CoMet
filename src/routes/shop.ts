@@ -17,7 +17,7 @@ router.post("/create-bulk", authMiddleware, createBulkShop);
 router.get("/shop-detail/:id", getShop);
 router.get("/shops", getShops);
 router.put("/update/:id", authMiddleware, isAdmin, updateShop);
-router.delete("/delete/:id", authMiddleware, isAdmin, deleteShop);
-router.delete("/delete-bulk", authMiddleware, isAdmin, deleteBulkShop);
+router.put("/delete/:id", authMiddleware, isAdmin, deleteShop);
+router.put("/delete-bulk", authMiddleware, isAdmin, deleteBulkShop);
 
 export default router;

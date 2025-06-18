@@ -27,6 +27,6 @@ router.put("/reset-password/:token", resetPassword);
 router.get("/profile/:id", getUser);
 router.get("/all-users", authMiddleware, isAdmin, allUsers);
 router.put("/update/:id", authMiddleware, updateUser);
-router.delete("/delete/:id", authMiddleware, deleteUser);
+router.put("/delete/:id", authMiddleware, deleteUser);
 
 export default router;

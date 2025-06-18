@@ -80,6 +80,7 @@ export const getShop = asyncHandler(async (req: Request, res: Response) => {
     const getShop = await prisma.shop.findUnique({
       where: {
         id: userId,
+        isDeleted: false,
       },
     });
     if (!getShop) {
@@ -111,7 +112,7 @@ export const getShops = asyncHandler(async (req: Request, res: Response) => {
       limit?: string;
     };
 
-    const filters: any = {};
+    const filters: any = { isDeleted: false };
     if (name) {
       filters.name = { contains: name, mode: "insensitive" };
     }
@@ -210,9 +211,12 @@ export const deleteShop = asyncHandler(async (req: Request, res: Response) => {
       res.status(404).json("Shop not Found");
       return;
     }
-    const deletedShop = await prisma.shop.delete({
+    const deletedShop = await prisma.shop.update({
       where: {
         id: userId,
+      },
+      data: {
+        isDeleted: true,
       },
     });
     res.status(200).json({ message: "Shop Deleted Successfully", deletedShop });
@@ -229,11 +233,14 @@ export const deleteBulkShop = asyncHandler(
       res.status(400);
       throw new Error("Please provide an array of shop IDs to delete.");
     }
-    const deleteBulk = await prisma.shop.deleteMany({
+    const deleteBulk = await prisma.shop.updateMany({
       where: {
         id: {
           in: ids,
         },
+      },
+      data: {
+        isDeleted: true,
       },
     });
     res.status(200).json(`${deleteBulk.count} Shops Deleted Successfully`);

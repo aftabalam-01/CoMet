@@ -9,6 +9,8 @@ import crypto from "crypto";
 import { JWT_SECRET } from "../config/config";
 import { sentResetEmail } from "./mail";
 
+// <-----------------------------------------------------------------------------Auth---------------------------------------------------------------------------->
+
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
   const { name, phone, image, role, email, password } = req.body;
 
@@ -69,11 +71,45 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 
   const { password: _, ...safeUser } = updatedUser;
+  const accessToken = generateToken(user.id);
 
   res.status(200).json({
     message: "Login successful",
     user: safeUser,
+    accessToken,
   });
+});
+
+export const logout = asyncHandler(async (req: Request, res: Response) => {
+  const cookie = req.cookies;
+  if (!cookie.refreshToken) {
+    res.status(404).json({ message: "No Refresh Token in cookies" });
+    return;
+  }
+  const refreshToken = cookie.refreshToken;
+  const user = await prisma.user.findFirst({
+    where: {
+      refreshToken,
+    },
+  });
+
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+  });
+  if (!user) {
+    res.sendStatus(204);
+    return;
+  }
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      refreshToken: null,
+    },
+  });
+  res.status(200).json({ message: "Logged Out Successfully" });
 });
 
 export const handleRefreshToken = asyncHandler(
@@ -116,6 +152,8 @@ export const handleRefreshToken = asyncHandler(
   }
 );
 
+// <-----------------------------------------------------------------------------Admin--------------------------------------------------------------------------->
+
 export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
   const isAdmin = await prisma.user.findUnique({
@@ -144,129 +182,24 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
       refreshToken,
     },
   });
+
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: 72 * 60 * 60 * 1000,
   });
+  const accessToken = generateToken(isAdmin.id);
+
   const { password: _, ...safeUser } = updatedUser;
   res.status(200).json({
     message: "Login successful",
     admin: safeUser,
+    accessToken,
   });
 });
 
-export const logout = asyncHandler(async (req: Request, res: Response) => {
-  const cookie = req.cookies;
-  if (!cookie.refreshToken) {
-    res.status(404).json({ message: "No Refresh Token in cookies" });
-    return;
-  }
-  const refreshToken = cookie.refreshToken;
-  const user = await prisma.user.findFirst({
-    where: {
-      refreshToken,
-    },
-  });
-
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: true,
-  });
-  if (!user) {
-    res.sendStatus(204);
-    return;
-  }
-  await prisma.user.update({
-    where: {
-      id: user.id,
-    },
-    data: {
-      refreshToken: " ",
-    },
-  });
-  res.status(200).json({ message: "Logged Out Successfully" });
-});
-
-export const forgotPassword = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { email } = req.body;
-
-    const user = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
-    if (!user) {
-      res.status(404).json({ message: "User Not Found" });
-      return;
-    }
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-
-    await prisma.user.update({
-      where: {
-        email,
-      },
-      data: {
-        passwordResetToken: hashedToken,
-        passwordResetExpires: new Date(Date.now() + 10 * 60 * 1000),
-      },
-    });
-    try {
-      const resetURL = `Please follow this link to reset your password. This link will be only valid for 10 Minutes from now <a href='http://localhost:4000/api/user/reset-password/${resetToken}'>Click Here</a>`;
-      const data = {
-        to: email,
-        text: `Hi ${user?.name || "User"}`,
-        subject: "Password Reset Link",
-        html: resetURL,
-      };
-      await sentResetEmail(data);
-      res.status(200).json({ Token: resetToken });
-    } catch (error: any) {
-      throw new Error(error);
-    }
-  }
-);
-
-export const resetPassword = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { token } = req.params;
-    const { password } = req.body;
-
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-    const user = await prisma.user.findFirst({
-      where: {
-        passwordResetToken: hashedToken,
-        passwordResetExpires: { gt: new Date() },
-      },
-    });
-    if (!user) {
-      console.warn("!! Password reset attempt with invalid/expired token.");
-      res
-        .status(400)
-        .json({ message: "Reset link is invalid or has expired." });
-      return;
-    }
-    const hashPassword = await hashedPassword(password);
-    await prisma.user.update({
-      where: {
-        id: user?.id,
-      },
-      data: {
-        password: hashPassword,
-        passwordResetToken: null,
-        passwordResetExpires: null,
-      },
-    });
-
-    res.status(200).json({ message: "Password Changed Successfully " });
-  }
-);
+// <-----------------------------------------------------------------------------Profile------------------------------------------------------------------------->
 
 export const getCurrentUser = asyncHandler(
   async (req: Request, res: Response) => {
@@ -285,7 +218,7 @@ export const getCurrentUser = asyncHandler(
       },
     });
     if (!currentUser) {
-      res.status(404).json("User Not Found");
+      res.status(404).json("User not Found");
       return;
     }
 
@@ -299,10 +232,11 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: {
       id: userId,
+      isDeleted: false,
     },
   });
   if (!user) {
-    res.status(404).json({ message: "User Not Found" });
+    res.status(404).json({ message: "User not Found" });
     return;
   }
   const { password, ...safeUser } = user;
@@ -310,7 +244,9 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const allUsers = asyncHandler(async (req: Request, res: Response) => {
-  const users = await prisma.user.findMany();
+  const users = await prisma.user.findMany({
+    where: { isDeleted: false },
+  });
 
   if (!users || users.length === 0) {
     res.status(404).json({ message: "No User" });
@@ -354,6 +290,89 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
+// <-----------------------------------------------------------------------------Forgot/Reset---------------------------------------------------------------------------->
+
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+    if (!user) {
+      res.status(404).json({ message: "User not Found" });
+      return;
+    }
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    await prisma.user.update({
+      where: {
+        email,
+      },
+      data: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+    try {
+      const resetURL = `Please follow this link to reset your password. This link will be only valid for 10 Minutes from now <a href='http://localhost:4000/api/user/reset-password/${resetToken}'>Click Here</a>`;
+      const data = {
+        to: email,
+        text: `Hi ${user?.name || "User"}`,
+        subject: "Password Reset Link",
+        html: resetURL,
+      };
+      await sentResetEmail(data);
+      res.status(200).json({ message: "Reset link sent to your Email" });
+    } catch (error: any) {
+      throw new Error(error);
+    }
+  }
+);
+
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { gt: new Date() },
+      },
+    });
+    if (!user) {
+      console.warn("!! Password reset attempt with invalid/expired token.");
+      res
+        .status(400)
+        .json({ message: "Reset link is invalid or has expired." });
+      return;
+    }
+    const hashPassword = await hashedPassword(password);
+    await prisma.user.update({
+      where: {
+        id: user?.id,
+      },
+      data: {
+        password: hashPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    res.status(200).json({ message: "Password Changed Successfully " });
+  }
+);
+
+// <-----------------------------------------------------------------------------Delete---------------------------------------------------------------------------->
+
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = parseInt(id);
@@ -367,9 +386,12 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
     res.status(404).json({ message: "User not Found" });
     return;
   }
-  const deletedUser = await prisma.user.delete({
+  const deletedUser = await prisma.user.update({
     where: {
       id: userId,
+    },
+    data: {
+      isDeleted: true,
     },
   });
 

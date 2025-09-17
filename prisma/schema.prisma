@@ -11,27 +11,23 @@ datasource db {
 //  USER MODEL
 //
 model User {
-  id                   String    @id @default(uuid())
+  id                   String       @id @default(uuid())
   name                 String
   image                String?
-  email                String    @unique
+  email                String       @unique
   phone                String
   password             String
   refreshToken         String?
-  passwordResetToken   String?   @db.VarChar(255)
+  passwordResetToken   String?      @db.VarChar(255)
   passwordResetExpires DateTime?
-  role                 Role      @default(STAFF) // ADMIN, STAFF, CLIENT
-  organizationName     String? // for CLIENTs (company name if applicable)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  deletedAt            DateTime?
-
-  // Relations
-  OrderBatches OrderBatch[]
-  Client       Client?
-  Transports   Transport[]
-  Orders       Order[]
-  AuditLogs    AuditLog[]
+  role                 Role         @default(STAFF)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  OrderBatch           OrderBatch[]
+  Transport            Transport[]
+  Order                Order[]
+  Client               Client?
+  AuditLog             AuditLog[]
 }
 
 enum Role {
@@ -131,6 +127,7 @@ model Order {
 enum DeliveryStatus {
   PENDING
   PROCESSING
+  SHIPPED
   DELIVERED
   CANCELLED
   RETURNED

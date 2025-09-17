@@ -4,7 +4,7 @@ import asyncHandler from "express-async-handler";
 import { Request, Response, NextFunction } from "express";
 import { JWT_SECRET } from "../config/config";
 
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
   user?: any;
 }
 export const authMiddleware = asyncHandler(
@@ -22,17 +22,17 @@ export const authMiddleware = asyncHandler(
           const user = await prisma.user.findUnique({
             where: { id: decode.id },
           });
-          if (!user) {
+          if (!user || user.isDeleted) {
             res.status(404);
             {
-              throw new Error("User Not Found");
+              throw new Error("User not Found or has been Deleted");
             }
           }
           req.user = user;
           next();
         }
-      } catch (error) {
-        throw new Error("Not Authorised");
+      } catch (error:any) {
+        throw new Error(error);
       }
     } else {
       throw new Error("No Token Attached to the Header");
@@ -42,7 +42,6 @@ export const authMiddleware = asyncHandler(
 
 export const isAdmin = asyncHandler(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    
     if (req?.user?.role !== "ADMIN") {
       throw new Error("Access denied: Admins only");
     } else {

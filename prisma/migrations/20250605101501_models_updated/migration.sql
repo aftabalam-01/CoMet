@@ -1,6 +1,0 @@
--- AlterTable
-ALTER TABLE "Shop" ALTER COLUMN "phone" SET DATA TYPE TEXT,
-ALTER COLUMN "contactPhone" SET DATA TYPE TEXT;
-
--- AlterTable
-ALTER TABLE "Transport" ALTER COLUMN "phone" SET DATA TYPE TEXT;

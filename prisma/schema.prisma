@@ -7,91 +7,128 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//
+//  USER MODEL
+//
 model User {
-  id                   Int          @id @default(autoincrement())
+  id                   String    @id @default(uuid())
   name                 String
   image                String?
-  email                String       @unique
+  email                String    @unique
   phone                String
   password             String
   refreshToken         String?
-  passwordResetToken   String?      @db.VarChar(255)
+  passwordResetToken   String?   @db.VarChar(255)
   passwordResetExpires DateTime?
-  role                 Role         @default(STAFF)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  OrderBatch           OrderBatch[]
-  Shop                 Shop[]
-  Transport            Transport[]
-  Order                Order[]
-}
+  role                 Role      @default(STAFF) // ADMIN, STAFF, CLIENT
+  organizationName     String? // for CLIENTs (company name if applicable)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
 
-model Shop {
-  id            Int      @id @default(autoincrement())
-  name          String
-  image         String?
-  email         String   @unique
-  phone         String   @unique
-  contactPerson String?
-  totalBoxes    Int?
-  billAmount    Int?
-  contactPhone  String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  createdBy     User     @relation(fields: [createdById], references: [id])
-  createdById   Int
-  orders        Order[]
-}
-
-model Transport {
-  id            Int      @id @default(autoincrement())
-  image         String?
-  name          String
-  phone         String   @unique
-  email         String   @unique
-  contactPerson String?
-  contactPhone  String?
-  totalBoxes    Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  createdBy     User     @relation(fields: [createdById], references: [id])
-  createdById   Int
-  orders        Order[]
-}
-
-model Order {
-  id             Int         @id @default(autoincrement())
-  shop           Shop        @relation(fields: [shopId], references: [id])
-  shopId         Int
-  boxes          Int
-  billno         Int
-  note           String
-  transport      Transport   @relation(fields: [transportId], references: [id])
-  transportId    Int
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  createdBy      User        @relation(fields: [createdById], references: [id])
-  createdById    Int
-  deliveryStatus Status      @default(PENDING)
-  payment        Payment     @default(PENDING)
-  OrderBatch     OrderBatch? @relation(fields: [orderBatchId], references: [id])
-  orderBatchId   Int?
-}
-
-model OrderBatch {
-  id          Int      @id @default(autoincrement())
-  date        DateTime @default(now())
-  orders      Order[]
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  createdById Int
+  // Relations
+  OrderBatches OrderBatch[]
+  Client       Client?
+  Transports   Transport[]
+  Orders       Order[]
+  AuditLogs    AuditLog[]
 }
 
 enum Role {
   ADMIN
   STAFF
+  CLIENT
 }
 
-enum Status {
+//
+//  SHOP MODEL
+//
+model Client {
+  userId     String    @unique
+  name       String
+  logo       String?
+  totalBoxes Int?
+  billAmount Int?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  // Relations
+  User     User            @relation(fields: [userId], references: [id])
+  Orders   Order[]
+  Contacts ContactPerson[]
+}
+
+//
+//  TRANSPORT MODEL
+//
+model Transport {
+  id         String    @id @default(uuid())
+  image      String?
+  name       String
+  phone      String    @unique
+  email      String    @unique
+  totalBoxes Int?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  CreatedBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
+
+  // Relations
+  Orders         Order[]
+  contacts       ContactPerson[]
+  OrderTransport OrderTransport[]
+}
+
+//
+//  CONTACT PERSONS
+//
+model ContactPerson {
+  id          String     @id @default(uuid())
+  transportId String?
+  clientId    String?
+  name        String
+  phone       String
+  email       String?
+  Client      Client?    @relation(fields: [clientId], references: [userId])
+  Transport   Transport? @relation(fields: [transportId], references: [id])
+}
+
+//
+//  ORDER MODEL
+//
+model Order {
+  id           String    @id @default(uuid())
+  clientId     String
+  orderBatchId String?
+  orderNumber  String    @unique // human-friendly order code
+  transportId  String?
+  createdById  String?
+  boxes        Int
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  Client Client @relation(fields: [clientId], references: [userId])
+
+  CreatedBy User? @relation(fields: [createdById], references: [id])
+
+  deliveryStatus DeliveryStatus @default(PENDING)
+  OrderBatch     OrderBatch?    @relation(fields: [orderBatchId], references: [id])
+
+  // Relations
+  Invoices       Invoice?
+  Payments       PaymentTransaction?
+  Transport      Transport?          @relation(fields: [transportId], references: [id])
+  OrderTransport OrderTransport?
+
+  @@index([clientId, createdAt])
+}
+
+enum DeliveryStatus {
   PENDING
   PROCESSING
   DELIVERED
@@ -99,10 +136,83 @@ enum Status {
   RETURNED
 }
 
-enum Payment {
-  UNPAID
+//
+//  ORDER BATCH (daily grouping)
+//
+model OrderBatch {
+  id          String   @id @default(uuid())
+  date        DateTime @default(now())
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdById String
+
+  // Relations
+  orders Order[]
+}
+
+//
+//  ORDER <-> TRANSPORT JOIN MODEL
+//
+model OrderTransport {
+  id          String   @id @default(uuid())
+  transportId String
+  orderId     String   @unique
+  assignedAt  DateTime @default(now())
+
+  Transport Transport @relation(fields: [transportId], references: [id])
+  Order     Order     @relation(fields: [orderId], references: [id])
+
+  @@unique([orderId, transportId]) // prevents duplicate assignment
+}
+
+//
+//  INVOICE MODEL
+//
+model Invoice {
+  id        String   @id @default(uuid())
+  orderId   String   @unique
+  invoiceNo String   @unique
+  amount    Int?
+  image     String?
+  issuedAt  DateTime @default(now())
+  paid      Boolean  @default(false)
+
+  Order Order @relation(fields: [orderId], references: [id])
+}
+
+//
+//  PAYMENTS (support multiple per order, refunds, gateways)
+//
+model PaymentTransaction {
+  id            String        @id @default(uuid())
+  orderId       String        @unique
+  amount        Int?
+  method        String? // UPI, COD, Razorpay, etc.
+  transactionId String? // Gateway ID
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  Order Order @relation(fields: [orderId], references: [id])
+}
+
+enum PaymentStatus {
   PENDING
-  PAID
+  SUCCESS
   FAILED
   REFUNDED
+}
+
+//
+//  AUDIT LOGS
+//
+model AuditLog {
+  id        String   @id @default(uuid())
+  entity    String? // e.g. "Order"
+  userId    String?
+  entityId  String?
+  action    String? // e.g. "CREATE", "UPDATE_STATUS"
+  oldValue  Json?
+  newValue  Json?
+  createdAt DateTime @default(now())
+
+  User User? @relation(fields: [userId], references: [id])
 }
